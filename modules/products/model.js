@@ -38,6 +38,11 @@ const productSchema = new Schema(
         quantity: {
             type: Number,
             min: [1, "Quantity must be greater than or equals to 0"],
+        },
+        status: {
+            type: String,
+            enum: ["Active", "Inactive"],
+            default: "Active"
         }
     },
     {
