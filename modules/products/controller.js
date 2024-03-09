@@ -70,9 +70,9 @@ exports.filterProducts = async (req, res) => {
 exports.updateProduct = async (req, res) => {
     const { imagesOrder } = req.body
     let { images } = req.files || {};
-    images = images && Array.isArray(images) ? images: [images]
+    images = images ? Array.isArray(images) ? images : [images]: null
 
-    await Product.validate(req.body)
+    imagesOrder?.length <= 0 && await Product.validate(req.body)
 
     const newUploadedImageNames = images && await Promise.all(images?.map(async (image) => await uploadImage(image)));
 
@@ -92,7 +92,7 @@ exports.updateProduct = async (req, res) => {
 
     const updatedProduct = await Product.findByIdAndUpdate(req.params.id, {
         $set: {
-            ...req.body,
+            ...(!imagesOrder?.length && {...req.body}),
             images: updatedImagesList
         }
     }, {
