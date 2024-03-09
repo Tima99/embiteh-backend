@@ -4,7 +4,7 @@ const { isValidObjectId } = require("mongoose");
 const uploadImage = require("../../services/uploadImage");
 
 exports.createProduct = async (req, res) => {
-    let { 'images[]' : images } = req.files || {};
+    let { images } = req.files || {};
     images = (images && Array.isArray(images)) ? images : [images]
 
     const uploadImageNames = images && await Promise.all(images?.map(async (image) => await uploadImage(image)));
@@ -93,7 +93,7 @@ exports.updateProduct = async (req, res) => {
     const updatedProduct = await Product.findByIdAndUpdate(req.params.id, {
         $set: {
             ...(!imagesOrder?.length && {...req.body}),
-            images: updatedImagesList
+            ...(imagesOrder?.length && { images: updatedImagesList })
         }
     }, {
         new: true
@@ -112,7 +112,6 @@ exports.uploadProductImages = async (req, res) => {
     images = images ? Array.isArray(images) ? images : [images]: null
 
     const uploadedImageNames = images && await Promise.all(images?.map(async (image) => await uploadImage(image)));
-    console.log({ uploadedImageNames });
 
 
     Array.isArray(uploadedImageNames) && await Product.findByIdAndUpdate(req.params.id, {
