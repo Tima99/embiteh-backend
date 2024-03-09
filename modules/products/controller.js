@@ -106,3 +106,23 @@ exports.updateProduct = async (req, res) => {
     })
 
 }
+
+exports.uploadProductImages = async (req, res) => {
+    let { images } = req.files || {};
+    images = images ? Array.isArray(images) ? images : [images]: null
+
+    const uploadedImageNames = images && await Promise.all(images?.map(async (image) => await uploadImage(image)));
+    console.log({ uploadedImageNames });
+
+
+    Array.isArray(uploadedImageNames) && await Product.findByIdAndUpdate(req.params.id, {
+        $push: {
+            images: {$each : uploadedImageNames}
+        }
+    })
+
+    res.json({
+        uploadedImageNames
+    })
+
+}
