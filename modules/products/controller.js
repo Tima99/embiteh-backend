@@ -1,13 +1,18 @@
 const HTTP = require("http-status-codes");
 const Product = require("./model");
+const LabelMaster = require("../masters/labelMaster/model");
 const { isValidObjectId } = require("mongoose");
 const uploadImage = require("../../services/uploadImage");
 
 exports.createProduct = async (req, res) => {
     let { images } = req.files || {};
-    images = (images && Array.isArray(images)) ? images : [images]
+    images = images && Array.isArray(images) ? images : [images];
 
-    const uploadImageNames = images && await Promise.all(images?.map(async (image) => await uploadImage(image)));
+    const uploadImageNames =
+        images &&
+        (await Promise.all(
+            images?.map(async (image) => await uploadImage(image))
+        ));
 
     const excludesKeysIfEmpty = ["currency", "label"];
 
@@ -37,13 +42,15 @@ exports.readProducts = async (req, res) => {
 };
 
 exports.readProductById = async (req, res) => {
-    const {images} = req.query;
+    const { images } = req.query;
     const productId = isValidObjectId(req.params.id) ? req.params.id : null;
 
-    const product = await Product.findById(productId).select(images ? "images" : "").lean();
+    const product = await Product.findById(productId)
+        .select(images ? "images" : "")
+        .lean();
     res.json({
         message: "Product fetched successfully",
-        product,
+        product: product,
     });
 };
 
@@ -68,60 +75,109 @@ exports.filterProducts = async (req, res) => {
 };
 
 exports.updateProduct = async (req, res) => {
-    const { imagesOrder } = req.body
+    const { imagesOrder } = req.body;
     let { images } = req.files || {};
-    images = images ? Array.isArray(images) ? images : [images]: null
+    images = images ? (Array.isArray(images) ? images : [images]) : null;
 
-    imagesOrder?.length <= 0 && await Product.validate(req.body)
+    imagesOrder?.length <= 0 && (await Product.validate(req.body));
 
-    const newUploadedImageNames = images && await Promise.all(images?.map(async (image) => await uploadImage(image)));
+    const newUploadedImageNames =
+        images &&
+        (await Promise.all(
+            images?.map(async (image) => await uploadImage(image))
+        ));
 
-    const updatedImagesList = imagesOrder?.flatMap(img => {
-        if(img === '0'){
-            // replaceable image
-            return [newUploadedImageNames.pop()]
-        } else if (img === '-1'){
-            // deleted image
-            return [];
+    const updatedImagesList = imagesOrder
+        ?.flatMap((img) => {
+            if (img === "0") {
+                // replaceable image
+                return [newUploadedImageNames.pop()];
+            } else if (img === "-1") {
+                // deleted image
+                return [];
+            }
+            // already exists image
+            return [img];
+        })
+        // combine rest of newly images
+        .concat(newUploadedImageNames || []);
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+        req.params.id,
+        {
+            $set: {
+                ...(!imagesOrder?.length && { ...req.body }),
+                ...(imagesOrder?.length && { images: updatedImagesList }),
+            },
+        },
+        {
+            new: true,
         }
-        // already exists image
-        return [img]; 
-    })
-    // combine rest of newly images
-    .concat(newUploadedImageNames || [])
-
-    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, {
-        $set: {
-            ...(!imagesOrder?.length && {...req.body}),
-            ...(imagesOrder?.length && { images: updatedImagesList })
-        }
-    }, {
-        new: true
-    })
-
+    );
 
     res.json({
         message: "Product Updated",
-        updatedProduct
-    })
-
-}
+        updatedProduct,
+    });
+};
 
 exports.uploadProductImages = async (req, res) => {
     let { images } = req.files || {};
-    images = images ? Array.isArray(images) ? images : [images]: null
+    images = images ? (Array.isArray(images) ? images : [images]) : null;
 
-    const uploadedImageNames = images && await Promise.all(images?.map(async (image) => await uploadImage(image)));
+    const uploadedImageNames =
+        images &&
+        (await Promise.all(
+            images?.map(async (image) => await uploadImage(image))
+        ));
 
-
-    Array.isArray(uploadedImageNames) && await Product.findByIdAndUpdate(req.params.id, {
-        $push: {
-            images: {$each : uploadedImageNames}
-        }
-    })
+    Array.isArray(uploadedImageNames) &&
+        (await Product.findByIdAndUpdate(req.params.id, {
+            $push: {
+                images: { $each: uploadedImageNames },
+            },
+        }));
 
     res.json({
-        uploadedImageNames
-    })
+        uploadedImageNames,
+    });
+};
 
-}
+exports.readProductsByLabels = async (req, res) => {
+    const labels = await LabelMaster.aggregate([
+        {
+            $match: {
+                status: "Active",
+            },
+        },
+        {
+            $lookup: {
+                from: "products",
+                let: { labelId: "$_id" },
+                pipeline: [
+                    {
+                        $match: {
+                            $and: [
+                                {
+                                    $expr: {
+                                        $eq: ["$label", "$$labelId"],
+                                    },
+                                },
+                                {
+                                    $expr: {
+                                        $eq: ["$status", "Active"],
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+                as: "products",
+            },
+        },
+    ]);
+
+    res.json({
+        labels,
+    });
+};
