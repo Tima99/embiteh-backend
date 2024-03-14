@@ -11,6 +11,7 @@ const errorHandler = require("./middlewares/errorHandler");
 const AuthRoutes = require("./modules/auth/route");
 const ProductRoutes = require("./modules/products/route");
 const ProductLabelRoutes = require("./modules/masters/labelMaster/route");
+const HeroBannerRoutes = require("./modules/masters/heroBannerMaster/route");
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use("/api/auth", AuthRoutes);
 app.use("/api/master/product-label", ProductLabelRoutes);
 
 app.use(fileUpload());
+app.use("/api/master/hero-banner", HeroBannerRoutes);
 app.use("/api/product", ProductRoutes);
 
 /** **/
