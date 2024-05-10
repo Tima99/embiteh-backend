@@ -86,7 +86,7 @@ exports.updateProduct = async (req, res) => {
         (await Promise.all(
             images?.map(async (image) => await uploadImage(image))
         ));
-
+    
     const updatedImagesList = imagesOrder
         ?.flatMap((img) => {
             if (img === "0") {
@@ -94,6 +94,8 @@ exports.updateProduct = async (req, res) => {
                 return [newUploadedImageNames.pop()];
             } else if (img === "-1") {
                 // deleted image
+                return [];
+            } else if (img === 'null'){
                 return [];
             }
             // already exists image
